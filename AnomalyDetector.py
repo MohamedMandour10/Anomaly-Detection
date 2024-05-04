@@ -15,23 +15,19 @@ class AnomalyDetector:
         Initialize the AnomalyDetector object.
 
         Parameters:
-        data (pandas Series): The input data for anomaly detection.
+        data (pandas Series or numpy array): The input data for anomaly detection.
         """
         self.data = self.get_data(data)
         self.model = None
 
-
     def get_data(self, data):
-        if isinstance(data, list):
-            data = pd.Series(data)
-
-            # Reshape the data if it's a 1D Series
+        if isinstance(data, pd.Series):
+            data = data.values.reshape(-1, 1)
+        elif isinstance(data, np.ndarray):
             if data.ndim == 1:
-                data = data.values.reshape(-1, 1)
-
-        elif not isinstance(data, pd.Series):
-            raise ValueError("Input data must be a pandas Series")
-
+                data = data.reshape(-1, 1)
+        else:
+            raise ValueError("Input data must be a pandas Series or a numpy array")
         return data
 
 
@@ -217,48 +213,41 @@ class AnomalyDetector:
 
         return autoencoder
 
-    def autoencoder_detector(self, epochs=50, batch_size=32, test_size=0.2, random_state=42):
+    def autoencoder_detector(self, epochs=50, batch_size=32, threshold=0.5, test_size=0.2):
         """
-        Detect anomalies in the data using an autoencoder.
+        Returns the outliers in the dataset using an autoencoder.
 
         Parameters:
-        epochs (int): Number of epochs for training.
-        batch_size (int): Batch size for training.
-        test_size (float): Proportion of data to use for testing.
-        random_state (int): Random seed for reproducibility.
+        - epochs (int): The number of epochs for training the autoencoder.
+        - batch_size (int): The batch size for training the autoencoder.
+        - threshold (float): The threshold for determining outliers.
 
         Returns:
-        numpy.ndarray: An array containing the data points that are classified as anomalies.
+        - outliers (numpy array): The outliers in the dataset.
         """
-        # Split data into train and test sets
-        X_train, X_test = train_test_split(self.data, test_size=test_size, random_state=random_state)
-
-        # Normalize data
-        scaler = keras.preprocessing.MinMaxScaler()
+        if self.data.ndim == 1:
+            self.data = self.data.reshape(-1, 1)
+        X_train, X_test, y_train, y_test = train_test_split(self.data, np.zeros_like(self.data), test_size=test_size)
+        scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
 
-        # Build and compile the autoencoder model
-        input_dim = X_train_scaled.shape[1]
-        autoencoder = self.build_autoencoder(input_dim)
-        autoencoder.compile(optimizer='adam', loss='mean_squared_error')
+        model = Sequential()
+        model.add(Dense(128, activation='relu', input_shape=(self.data.shape[1],)))
+        model.add(Dense(128, activation='relu'))
+        model.add(Dense(self.data.shape[1], activation='sigmoid'))
+        model.compile(optimizer='adam', loss='mean_squared_error')
 
-        # Train the autoencoder
-        autoencoder.fit(X_train_scaled, X_train_scaled, epochs=epochs, batch_size=batch_size, shuffle=True, validation_data=(X_test_scaled, X_test_scaled), verbose=0)
+        model.fit(X_train_scaled, X_train_scaled, epochs=epochs, batch_size=batch_size, validation_data=(X_test_scaled, X_test_scaled))
 
-        # Reconstruct data using the trained autoencoder
-        reconstructions = autoencoder.predict(X_test_scaled)
+        outliers = []
+        for x in X_test_scaled:
+            x_reconstructed = model.predict(x.reshape(1, -1))
+            mse = np.mean((x_reconstructed - x) ** 2)
+            if mse > threshold:
+                outliers.append(scaler.inverse_transform([x])[0])
 
-        # Calculate reconstruction errors
-        reconstruction_errors = np.mean(np.square(X_test_scaled - reconstructions), axis=1)
-
-        # Determine threshold for anomaly detection (e.g., 95th percentile)
-        threshold = np.percentile(reconstruction_errors, 95)
-
-        # Find outliers based on the threshold
-        outliers = X_test[reconstruction_errors > threshold].flatten()
-
-        return outliers
+        return np.array(outliers)
     
 
     def plot_data_with_outliers(self, outliers):
@@ -276,7 +265,6 @@ class AnomalyDetector:
         plt.ylabel('Value')
         plt.legend()
         plt.show()
-
 
 # Example usage:
 # Example data with outliers
