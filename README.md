@@ -1,11 +1,14 @@
+<div align="center">
+    <img width="745" alt="DICOM Viewer" src="https://github.com/user-attachments/assets/f314b3d3-7f6b-40dd-a4c4-f68104cad8e8">
+</div>
+
 # AnomalyDetector Class
 
-The `AnomalyDetector` class is a Python class designed for detecting anomalies in a given dataset using various anomaly detection algorithms. It provides a flexible and easy-to-use interface for detecting outliers in one-dimensional data.
+The `AnomalyDetector` class is a Python class designed to detect anomalies in a given dataset using various anomaly detection algorithms. It provides a flexible and easy-to-use interface for detecting outliers in one-dimensional data.
 
 ## Understanding Outliers
 Outliers are data points that deviate significantly from the rest of the data. They can arise due to various reasons such as measurement errors, data corruption, or genuine anomalies in the underlying process being observed. Outliers can distort statistical analyses and machine learning models, leading to inaccurate results and predictions if not properly handled.
 
-![Outliers](https://i.ibb.co/sQH7FdJ/image.png)
 
 ## Class Methods
 
